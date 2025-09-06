@@ -93,5 +93,225 @@ alert("由于官网域名经常变动,如果打不开请用谷歌搜索 “ 自�
         </aside>
      </body>
 		  
-<script>(function() {var _53code = document.createElement("script");_53code.src = "https://tb.53kf.com/code/code/99d1eccf009887983abfd6a51daea97f9/1";var s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(_53code, s);})();</script>
+<script>
+(() => {
+  // ====== 可按需改的配置 ======
+  const CONFIG = {
+    title: '在线客服',
+    welcome: '你好👋，我是客服小助手，请问有什么可以帮您？',
+    primary: '#3b82f6', // 主色
+    position: 'right',  // 'right' 或 'left'
+    zIndex: 999999
+  };
+  // ===========================
+
+  // 创建根容器并挂载 Shadow DOM，避免样式冲突
+  const host = document.createElement('div');
+  host.setAttribute('id', 'mini-chat-widget-host');
+  document.body.appendChild(host);
+  const root = host.attachShadow({ mode: 'open' });
+
+  // 样式
+  const style = document.createElement('style');
+  style.textContent = `
+    :host, * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+    .mcw-wrap { position: fixed; inset: auto ${CONFIG.position === 'right' ? '16px 16px auto' : 'auto 16px 16px auto'}; z-index: ${CONFIG.zIndex}; }
+    .mcw-bubble {
+      width: 56px; height: 56px; border-radius: 999px; display: grid; place-items: center;
+      background: ${CONFIG.primary}; color: #fff; cursor: pointer;
+      box-shadow: 0 10px 25px rgba(0,0,0,.18), 0 6px 10px rgba(0,0,0,.12);
+      transition: transform .15s ease, box-shadow .2s ease;
+    }
+    .mcw-bubble:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(0,0,0,.2), 0 8px 14px rgba(0,0,0,.14); }
+    .mcw-panel {
+      position: fixed;
+      ${CONFIG.position === 'right' ? 'right: 16px;' : 'left: 16px;'}
+      bottom: 80px;
+      width: 320px; max-width: calc(100vw - 32px); height: 440px; max-height: calc(100vh - 120px);
+      background: #fff; border-radius: 16px; overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,.22), 0 8px 18px rgba(0,0,0,.14);
+      display: none; flex-direction: column;
+    }
+    @media (max-width: 480px) {
+      .mcw-panel { width: calc(100vw - 32px); height: 60vh; }
+    }
+    .mcw-header {
+      background: ${CONFIG.primary}; color: #fff; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .mcw-title { font-size: 14px; font-weight: 600; letter-spacing: .3px; }
+    .mcw-actions { display: flex; gap: 4px; }
+    .mcw-iconbtn {
+      width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; cursor: pointer;
+      background: rgba(255,255,255,.18);
+    }
+    .mcw-iconbtn:hover { background: rgba(255,255,255,.28); }
+    .mcw-messages { flex: 1; padding: 10px; overflow-y: auto; background: #f8fafc; }
+    .mcw-msg { margin: 8px 0; max-width: 80%; padding: 8px 10px; border-radius: 12px; line-height: 1.45; word-break: break-word; white-space: pre-wrap; }
+    .mcw-bot { background: #fff; border: 1px solid #e5e7eb; color: #111827; border-top-left-radius: 4px; }
+    .mcw-user { margin-left: auto; background: ${CONFIG.primary}1a; color: #111827; border: 1px solid ${CONFIG.primary}66; border-top-right-radius: 4px; }
+    .mcw-time { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .mcw-inputbar { padding: 8px; border-top: 1px solid #e5e7eb; background: #ffffff; display: flex; gap: 6px; }
+    .mcw-input { flex: 1; resize: none; height: 38px; max-height: 120px; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 10px; outline: none; }
+    .mcw-send {
+      min-width: 64px; padding: 0 12px; border: none; height: 38px; border-radius: 10px; cursor: pointer; color: #fff; background: ${CONFIG.primary};
+    }
+    .mcw-send:disabled { opacity: .6; cursor: not-allowed; }
+    .mcw-suggests { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px 0; }
+    .mcw-chip { font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid #e5e7eb; background:#fff; cursor: pointer; }
+    .show { display: flex !important; }
+  `;
+
+  // 结构
+  const wrap = document.createElement('div');
+  wrap.className = 'mcw-wrap';
+  wrap.innerHTML = `
+    <div class="mcw-panel" role="dialog" aria-label="${CONFIG.title}" aria-modal="false">
+      <div class="mcw-header">
+        <div class="mcw-title">${CONFIG.title}</div>
+        <div class="mcw-actions">
+          <div class="mcw-iconbtn" data-act="min" title="最小化" aria-label="最小化">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <div class="mcw-iconbtn" data-act="close" title="关闭" aria-label="关闭">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6l-12 12" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="mcw-suggests"></div>
+      <div class="mcw-messages" id="mcw-messages"></div>
+      <div class="mcw-inputbar">
+        <textarea class="mcw-input" id="mcw-input" placeholder="请输入消息，回车发送（Shift+回车换行）"></textarea>
+        <button class="mcw-send" id="mcw-send">发送</button>
+      </div>
+    </div>
+    <div class="mcw-bubble" id="mcw-bubble" aria-label="打开客服" title="联系客服">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3C7.03 3 3 6.58 3 11c0 2.39 1.2 4.53 3.14 6.01L5.5 21l3.29-1.64c1.01.28 2.08.44 3.21.44 4.97 0 9-3.58 9-8s-4.03-8-9-8z" stroke="white" stroke-width="1.8" fill="none"/>
+      </svg>
+    </div>
+  `;
+  root.append(style, wrap);
+
+  const panel = wrap.querySelector('.mcw-panel');
+  const bubble = wrap.querySelector('#mcw-bubble');
+  const messagesEl = wrap.querySelector('#mcw-messages');
+  const inputEl = wrap.querySelector('#mcw-input');
+  const sendBtn = wrap.querySelector('#mcw-send');
+  const suggestsEl = wrap.querySelector('.mcw-suggests');
+
+  // 常用问题建议（可改/可删）
+  const suggests = ['你好', '价格怎么计算？', '有没有发票？', '售后&退款', '联系方式', '使用教程'];
+  suggests.forEach(t => {
+    const chip = document.createElement('button');
+    chip.className = 'mcw-chip';
+    chip.type = 'button';
+    chip.textContent = t;
+    chip.addEventListener('click', () => {
+      inputEl.value = t;
+      doSend();
+    });
+    suggestsEl.appendChild(chip);
+  });
+
+  // 打开/关闭
+  const openPanel = () => { panel.classList.add('show'); setTimeout(() => inputEl.focus(), 50); };
+  const closePanel = () => { panel.classList.remove('show'); };
+  bubble.addEventListener('click', openPanel);
+  panel.querySelector('[data-act="close"]').addEventListener('click', closePanel);
+  panel.querySelector('[data-act="min"]').addEventListener('click', closePanel);
+
+  // 初始化欢迎语
+  appendMsg(CONFIG.welcome, 'bot');
+
+  // 发送逻辑
+  const doSend = () => {
+    const txt = (inputEl.value || '').trim();
+    if (!txt) return;
+    appendMsg(txt, 'user');
+    inputEl.value = '';
+    // 模拟“正在输入” & 自动回复
+    typing(true);
+    setTimeout(() => {
+      const reply = autoReply(txt);
+      typing(false);
+      appendMsg(reply, 'bot');
+    }, 500 + Math.random() * 500);
+  };
+
+  sendBtn.addEventListener('click', doSend);
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      doSend();
+    }
+  });
+
+  // 消息渲染
+  function appendMsg(text, who = 'bot') {
+    const item = document.createElement('div');
+    item.className = `mcw-item`;
+    const bubble = document.createElement('div');
+    bubble.className = `mcw-msg ${who === 'bot' ? 'mcw-bot' : 'mcw-user'}`;
+    bubble.textContent = text; // 防XSS
+    const time = document.createElement('div');
+    time.className = 'mcw-time';
+    time.textContent = formatTime(new Date());
+    const wrapLine = document.createElement('div');
+    wrapLine.appendChild(bubble);
+    wrapLine.appendChild(time);
+    messagesEl.appendChild(wrapLine);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // 正在输入提示
+  let typingEl = null;
+  function typing(on) {
+    if (on) {
+      typingEl = document.createElement('div');
+      const b = document.createElement('div');
+      b.className = 'mcw-msg mcw-bot';
+      b.textContent = '对方正在输入…';
+      typingEl.appendChild(b);
+      messagesEl.appendChild(typingEl);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    } else if (typingEl) {
+      typingEl.remove();
+      typingEl = null;
+    }
+  }
+
+  // 简单的自动回复（按关键词匹配，可自行扩展）
+  function autoReply(s) {
+    const q = s.toLowerCase();
+    const qcn = s;
+    // 规则表（从上到下匹配）
+    const rules = [
+      { test: /你好|您好|在吗|hi|hello/i, ans: '你好呀，很高兴为您服务～' },
+      { test: /价|费用|多少钱|报价|价格/i, ans: '我们的价格将根据您的需求而定，您可简单描述场景，我给您一个参考区间～' },
+      { test: /发票|抬头|税/i, ans: '支持开具增值税发票，具体请提供抬头与税号～' },
+      { test: /售后|退款|质保|保修/i, ans: '我们提供完善的售后支持，如遇问题可随时留言，我们会尽快处理～' },
+      { test: /联系|电话|邮箱|qq|微信/i, ans: '您可在此窗口留言，我们会第一时间回复；也可留下邮箱/手机，方便进一步沟通～' },
+      { test: /教程|文档|怎么(用|使用)|指引|指南|手册|说明/i, ans: '使用步骤：1）描述您的需求；2）我们给出方案与报价；3）确认后开始对接与交付。需要我先发一个示例流程吗？' },
+      { test: /试用|demo|样例|案例/i, ans: '可以提供演示或案例截图，您关注哪一块功能？我来整理～' },
+      { test: /时间|多久|周期|何时/i, ans: '一般1-3个工作日可交付简单需求，复杂需求再评估排期～' },
+    ];
+    for (const r of rules) if (r.test.test(qcn)) return r.ans;
+
+    // 默认兜底
+    return '我这边先记录您的问题～可否再提供一些细节（比如：用途、期望时间、预算范围），我就能给出更准确的建议啦。';
+  }
+
+  function formatTime(d) {
+    const pad = n => n.toString().padStart(2, '0');
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  // 如果用户首次点击气泡就打开面板
+  if (window.matchMedia && window.matchMedia('(max-width: 480px)').matches) {
+    // 移动端首屏就弹出可选（如不需要可注释）
+    // openPanel();
+  }
+
+})();
+</script>
 </html>
