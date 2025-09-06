@@ -199,19 +199,6 @@ alert("由于官网域名经常变动,如果打不开请用谷歌搜索 “ 自�
   const sendBtn = wrap.querySelector('#mcw-send');
   const suggestsEl = wrap.querySelector('.mcw-suggests');
 
-  // 常用问题建议（可改/可删）
-  const suggests = ['你好', '价格怎么计算？', '有没有发票？', '售后&退款', '联系方式', '使用教程'];
-  suggests.forEach(t => {
-    const chip = document.createElement('button');
-    chip.className = 'mcw-chip';
-    chip.type = 'button';
-    chip.textContent = t;
-    chip.addEventListener('click', () => {
-      inputEl.value = t;
-      doSend();
-    });
-    suggestsEl.appendChild(chip);
-  });
 
   // 打开/关闭
   const openPanel = () => { panel.classList.add('show'); setTimeout(() => inputEl.focus(), 50); };
